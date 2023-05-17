@@ -9,10 +9,16 @@
 @available(iOS 13.0, macOS 10.15.0, watchOS 6.0.0, tvOS 13.0.0, *)
 public func withSafeCheckedContinuation
     <T>
-    (_ body: (SafeContinuation<T, Never>)->())
+    (named name: String = "<#unnamed#>",
+     _ body: (SafeContinuation<T, Never>)->())
 async -> T {
     await withCheckedContinuation { unsafeContinuation in
-        body(SafeContinuation(unsafeContinuation))
+        body(
+            SafeContinuation(
+                name: name,
+                unsafeContinuation: unsafeContinuation
+            )
+        )
     }
 }
 
@@ -20,10 +26,16 @@ async -> T {
 @available(iOS 13.0, macOS 10.15.0, watchOS 6.0.0, tvOS 13.0.0, *)
 public func withSafeCheckedThrowingContinuation
     <T>
-    (_ body: (SafeContinuation<T, Error>)->())
+    (named name: String = "<#unnamed#>",
+     _ body: (SafeContinuation<T, Error>)->())
 async throws -> T {
     try await withCheckedThrowingContinuation { unsafeContinuation in
-        body(SafeContinuation(unsafeContinuation))
+        body(
+            SafeContinuation(
+                name: name,
+                unsafeContinuation: unsafeContinuation
+            )
+        )
     }
 }
 
@@ -32,9 +44,19 @@ async throws -> T {
 public actor SafeContinuation <Output, Failure: Error> {
     
     ///
-    public init (_ continuation: CheckedContinuation<Output, Failure>) {
-        self.continuation = continuation
+    public init
+        (name: String,
+         unsafeContinuation: CheckedContinuation<Output, Failure>) {
+        
+        ///
+        self.name = name
+        self.unsafeContinuation = unsafeContinuation
     }
+    
+    ///
+    private let name: String
+    private let unsafeContinuation: CheckedContinuation<Output, Failure>
+    private var hasResumed: Bool = false
     
     ///
     public nonisolated func resume (returning output: Output) {
@@ -52,13 +74,16 @@ public actor SafeContinuation <Output, Failure: Error> {
     }
     
     ///
-    private let continuation: CheckedContinuation<Output, Failure>
-    private var hasResumed: Bool = false
-    
-    ///
     private func _resume (with result: Result<Output, Failure>) {
         guard !hasResumed else { return }
         hasResumed = true
-        continuation.resume(with: result)
+        unsafeContinuation.resume(with: result)
+    }
+    
+    ///
+    deinit {
+        if !hasResumed {
+            print("SafeContinuation(\(name)) has leaked.")
+        }
     }
 }
