@@ -6,16 +6,22 @@
 //
 
 ///
+@_exported import LeakTracker_module
+
+
+///
 @available(iOS 13.0, macOS 10.15.0, watchOS 6.0.0, tvOS 13.0.0, *)
 public func withSafeCheckedContinuation
     <T>
     (named name: String = "<#unnamed#>",
+     leakTracker: LeakTracker,
      _ body: (SafeContinuation<T, Never>)->())
 async -> T {
     await withCheckedContinuation { unsafeContinuation in
         body(
             SafeContinuation(
                 name: name,
+                leakTracker: leakTracker,
                 unsafeContinuation: unsafeContinuation
             )
         )
@@ -27,12 +33,14 @@ async -> T {
 public func withSafeCheckedThrowingContinuation
     <T>
     (named name: String = "<#unnamed#>",
+     leakTracker: LeakTracker,
      _ body: (SafeContinuation<T, Error>)->())
 async throws -> T {
     try await withCheckedThrowingContinuation { unsafeContinuation in
         body(
             SafeContinuation(
                 name: name,
+                leakTracker: leakTracker,
                 unsafeContinuation: unsafeContinuation
             )
         )
@@ -46,11 +54,17 @@ public actor SafeContinuation <Output, Failure: Error> {
     ///
     public init
         (name: String,
+         leakTracker: LeakTracker,
          unsafeContinuation: CheckedContinuation<Output, Failure>) {
         
         ///
         self.name = name
         self.unsafeContinuation = unsafeContinuation
+        
+        ///
+        Task { @MainActor in
+            leakTracker["safeContinuation(\(name))"].track(self)
+        }
     }
     
     ///

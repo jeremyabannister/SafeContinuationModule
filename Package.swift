@@ -12,11 +12,20 @@ let package = Package(
             targets: ["SafeContinuationModule"]
         ),
     ],
-    dependencies: [],
+    dependencies: [
+        
+        ///
+        .package(
+            url: "https://github.com/jeremyabannister/LeakTracker-module",
+            "0.1.7" ..< "0.2.0"
+        ),
+    ],
     targets: [
         .target(
             name: "SafeContinuationModule",
-            dependencies: []
+            dependencies: [
+                "LeakTracker-module",
+            ]
         ),
         .testTarget(
             name: "SafeContinuationModuleTests",
